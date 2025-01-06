@@ -1,0 +1,201 @@
+---
+title: "Statistical Modeling with Texas Housing Dataset"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r}
+# Set CRAN mirror
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+
+# Install and load necessary packages
+install.packages("ggplot2")
+library(ggplot2)
+
+# Load dataset
+data("txhousing", package = "ggplot2")
+```
+
+
+Exploring the Dataset
+
+```{r}
+txhousing_class <- class(txhousing)
+```
+
+```{r}
+colnames(txhousing)
+```
+
+```{r}
+txhousing_dimensions <- dim(txhousing)
+
+class_and_dimensions <- c(txhousing_class, txhousing_dimensions)
+
+class_and_dimensions
+
+```
+
+```{r}
+ls.str(txhousing)
+
+```
+
+```{r}
+median(txhousing$sales, na.rm = TRUE)
+
+```
+
+```{r}
+year_table <- table(txhousing$year)
+
+year_table
+```
+
+```{r}
+city_table <- table(txhousing$city)
+
+dim(city_table)
+
+```
+
+Visualizing Variables of Interest
+
+```{r}
+boxplot(txhousing$sales, horizontal = TRUE, 
+        main = "Sales of Texas Housing", 
+        xlab = "Sales")
+
+```
+
+```{r}
+boxplot(sales~year, 
+        data = txhousing,
+        horizontal = TRUE, 
+        main = "Sales of Texas Housing over years", 
+        xlab = "Sales",
+        ylab = "Years",
+        bty = "n",
+        las = 1)
+
+#lower sales in early 2000, sales between 0-2000 people was higher in 2008ish, fewer sales 2015.
+
+```
+
+```{r}
+
+boxplot(median~year, 
+        data = txhousing,
+        horizontal = TRUE, 
+        main = "Median Sales Price of Texas Housing Over Years", 
+        xlab = "Median sales price",
+        ylab = "Years",
+        bty = "n",
+        las = 1,
+        col = "lightgreen")
+
+
+boxplot(sales~year, 
+        data = txhousing,
+        horizontal = TRUE, 
+        main = "Sales of Texas Housing Over Years", 
+        xlab = "Sales",
+        ylab = "Years",
+        bty = "n",
+        las = 1)
+
+
+# Potentially, given the 2008 financial crisis, as housing prices maintained and even increased 
+# around 2008, it is possible that the crisis has affected peoples ability to buy houses
+# or at the least, the sales of houses in Texas.
+```
+
+```{r}
+scatter.smooth(x = txhousing$median, 
+               y = txhousing$sales, 
+               main = "Sales Comparied to Median Sale Price", 
+               xlab = "Sales",
+               ylab = "Median sales price",
+               cex = 0.75)
+
+#Sales (independent = x) is the consequence of median sale price (dependent = y)
+
+
+#The form is linear with clusters above correlated line
+#The strength of sales or correlation seems tied to lower prices.
+#The direction of the association has an upward trend but disperses after the 220000 mark.
+```
+
+Cleaning—Identifying and Removing NAs
+
+```{r}
+# Number of missing rows.
+
+sum(is.na(txhousing$median))
+```
+
+```{r}
+# Proportion of missing rows.
+
+mean(is.na(txhousing$median))
+```
+
+```{r}
+# Indices of missing rows.
+
+NA_median_index <- which(is.na(txhousing$median))
+
+```
+
+```{r}
+# Dataframe of rows with missing values (selected columns).
+
+txhousing[NA_median_index, c("city", "year", "sales", "median")]
+```
+
+```{r}
+# Cleaned dataframe (txhousing_clean).
+
+txhousing_clean <- txhousing[-NA_median_index, c("city", "year", "sales", "median", "month")]
+
+```
+
+Modeling
+
+```{r}
+# Linear model mod1.
+# Linear model: median sales price vs. sales.
+mod1 <- lm(median ~ sales, data = txhousing_clean)
+
+# Summary of the Linear Model.
+summary_mod1 <- summary(mod1)
+summary_mod1
+
+# Check if sales is statistically significant (p-value < 0.05)
+is_significant <- summary_mod1$coefficients["sales", "Pr(>|t|)"] < 0.05
+is_significant
+
+# Correlation between Sales and Median.
+correlation <- round(cor(txhousing_clean$sales, txhousing_clean$median, use = "complete.obs"), 2)
+correlation
+
+
+# This model adds on to mod1 by adding an additional predictor, month, to see if
+# both sales and month together predict median.
+# Multiple regression Model: median sales price vs. sales and month
+mod2 <- lm(median ~ sales + month, data = txhousing_clean)
+
+# Summary of the multiple regression model
+summary_mod2 <- summary(mod2)
+summary_mod2
+
+# Checking if sales and month are statistically significant
+sales_significant <- summary_mod2$coefficients["sales", "Pr(>|t|)"] < 0.05
+month_significant <- summary_mod2$coefficients["month", "Pr(>|t|)"] < 0.05
+
+# R² value for mod2 and its interpretation
+r_squared_mod2 <- summary(mod2)$r.squared
+r_squared_mod2
+# Interpretation of above:
+# R² indicates the proportion of variance in 'median' explained by 'sales' and 'month'.
